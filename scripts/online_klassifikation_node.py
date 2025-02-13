@@ -90,7 +90,7 @@ class Klassifikation_Node:
         self.process_data(combined_data)
 
     def load_parameters(self):
-        yaml_path = "/home/rtliu/catkin_ws/src/online_klassifikation_pkg/scripts/Aktualisierung.yaml"
+        yaml_path = "/home/rtliu/catkin_ws/src/online_klassifikation_pkg/scripts/Aktualisierung.yaml" #!!!!! Änderung
 
         with open(yaml_path, 'r') as file:
             try:
@@ -302,7 +302,7 @@ class Klassifikation_Node:
     #     self.classify(features)
 
     def calculate_features(self):
-        data_array = np.array(self.data_window)  # 转换为 NumPy 数组
+        data_array = np.array(self.data_window) 
         mean_features = np.mean(data_array, axis=0)
         std_features = np.std(data_array, axis=0)
         max_features = np.max(data_array, axis=0)
@@ -321,13 +321,13 @@ class Klassifikation_Node:
 
         rospy.loginfo(f"Feature extraction called {self.feature_call_count} times")
         self.feature_call_count += 1
-        self.classify(feature_vector)  # 调用分类器
+        self.classify(feature_vector) 
 
 
     # def calculate_features(self):
-    #     start_time = time.time()  # 记录计算开始时间
+    #     start_time = time.time()  
 
-    #     data = np.array(self.data_window)  # 直接转 NumPy 数组，加速计算
+    #     data = np.array(self.data_window) 
     #     mean_vals = np.mean(data, axis=0)
     #     std_vals = np.std(data, axis=0)
     #     max_vals = np.max(data, axis=0)
@@ -340,15 +340,15 @@ class Klassifikation_Node:
     #     diff2_data = np.diff(diff_data, axis=0)
     #     mobility = np.std(diff_data, axis=0) / np.std(data, axis=0)
     #     complexity = (np.std(diff2_data, axis=0) / np.std(diff_data, axis=0)) / mobility
-    #     complexity[np.isnan(complexity)] = 0  # 避免 NaN
+    #     complexity[np.isnan(complexity)] = 0 
 
     #     hist, _ = np.histogram(data, bins=10, density=True)
     #     hist = hist[hist > 0]
     #     entropy_vals = -np.sum(hist * np.log2(hist))
 
     #     n = data.shape[0]
-    #     fft_vals = np.abs(np.fft.rfft(data, axis=0))  # 只取正频率部分
-    #     dom_freq = np.argmax(fft_vals, axis=0) / n * 100  # 计算主频率
+    #     fft_vals = np.abs(np.fft.rfft(data, axis=0))  
+    #     dom_freq = np.argmax(fft_vals, axis=0) / n * 100 
 
     #     features = np.concatenate([mean_vals, std_vals, max_vals, min_vals, auto_corr, complexity, [entropy_vals], dom_freq]).reshape(1, -1)
 
