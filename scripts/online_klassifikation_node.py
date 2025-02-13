@@ -41,7 +41,7 @@ class Klassifikation_Node:
     def __init__(self):
         rospy.init_node('online_klassifikation')
         
-        self.base_path = rospy.get_param("~base_path", "/home/rtliu/catkin_ws/src/online_klassifikation_pkg/Best_Model/")
+        self.base_path = rospy.get_param("~base_path", "/home/rtliu/catkin_ws/src/online_klassifikation_pkg/Best_Model/") # hier muss mit realen ordner entsprechen!!!
         self.model_type = None
         self.minSminL = None
         self.window_size = None
@@ -52,7 +52,7 @@ class Klassifikation_Node:
         self.slow_process_count = 0 
         self.load_parameters()
 
-        self.lock = threading.Lock()  # 用于保护 data_window
+        self.lock = threading.Lock()  
         self.thread = None
 
         self.model_path = None
