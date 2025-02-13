@@ -1,0 +1,14 @@
+<launch>
+    <!-- online_klassifikation_node -->
+    <node pkg="online_klassifikation_pkg" type="online_klassifikation_node.py" name="online_klassifikation" output="screen"/>
+
+    <!-- simulation_node /model_loaded -->
+    <node pkg="online_klassifikation_pkg" type="simulation_node.py" name="simulation_node" output="screen">
+        <param name="csv_path" value="$(find online_klassifikation_pkg)/data/simulation_data.csv" />
+    </node>
+
+    <!-- Lade Parameter aus Aktualisierung.yaml -->
+    <rosparam file="$(find online_klassifikation_pkg)/scripts/Aktualisierung.yaml" command="load"/>
+</launch>
+
+
