@@ -33,7 +33,7 @@ class FileEventHandler(FileSystemEventHandler):
                 rospy.loginfo(f"[INFO] YAML file updated: {event.src_path}, reloading parameters...")
                 self.reload_callback()
 
-            
+# Zeile 41, 91, 107, 294
 class Klassifikation_Node:
     def __init__(self):
         rospy.init_node('online_klassifikation')
