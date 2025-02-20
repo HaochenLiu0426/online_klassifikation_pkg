@@ -1,6 +1,17 @@
 <launch>
+    <!-- Ordnersphad orientieren -->
+    <arg name="base_path" value="/home/rtliu/catkin_ws/src/online_klassifikation_pkg/Best_Model/" />
+    <arg name="yaml_path" value="/home/rtliu/catkin_ws/src/online_klassifikation_pkg/scripts/Aktualisierung.yaml" />
+    <arg name="observe_path" value="/home/rtliu/catkin_ws/src/online_klassifikation_pkg/scripts/" />
+    <arg name="save_dir" value="/home/rtliu/catkin_ws/src/online_klassifikation_pkg/classification_results/" />
+    
     <!-- online_klassifikation_node -->
-    <node pkg="online_klassifikation_pkg" type="online_klassifikation_node.py" name="online_klassifikation" output="screen"/>
+    <node pkg="online_klassifikation_pkg" type="online_klassifikation_node.py" name="online_klassifikation" output="screen">
+        <param name="base_path" value="$(arg base_path)" />
+        <param name="yaml_path" value="$(arg yaml_path)" />
+        <param name="observe_path" value="$(arg observe_path)" />
+        <param name="save_dir" value="$(arg save_dir)" />
+    </node>
 
     <!-- simulation_node /model_loaded -->
     <node pkg="online_klassifikation_pkg" type="simulation_node.py" name="simulation_node" output="screen">
