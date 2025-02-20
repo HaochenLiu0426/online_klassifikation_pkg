@@ -1,6 +1,6 @@
-model_type: Random_Forest
-minSminL: minS100_minL40
-window_size: 30
+model_type: SVM
+minSminL: ''
+window_size: 50
 split_method: Split
-csv_path: "/home/rtliu/catkin_ws/src/01. Die zugeschnittenen Daten_Interaktion/data01_zugeschnitten.csv"
+csv_path: "/home/rtliu/catkin_ws/src/MA_Liu/data_FTS_02_zugeschnitten.csv" # data_FTS_02_zugeschnitten
 # csv_path: "/home/rtliu/catkin_ws/src/01. Die zugeschnittenen Daten_Kollision/data15_zugeschnitten.csv"

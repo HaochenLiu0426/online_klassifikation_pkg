@@ -33,12 +33,31 @@ class FileEventHandler(FileSystemEventHandler):
                 rospy.loginfo(f"[INFO] YAML file updated: {event.src_path}, reloading parameters...")
                 self.reload_callback()
 
-# Zeile 41, 91, 107, 294
+
+''' Achtung: 
+    Before each use, 
+    please ensure that the <!-- Ordnerpfad orientieren --> section 
+    in the classification_simulation.launch file is correctly configured. '''
+
 class Klassifikation_Node:
     def __init__(self):
         rospy.init_node('online_klassifikation')
         
-        self.base_path = rospy.get_param("~base_path", "/home/rtliu/catkin_ws/src/online_klassifikation_pkg/Best_Model/")
+        self.yaml_path = rospy.get_param("~yaml_path")
+        self.observe_path = rospy.get_param("~observe_path")
+
+        self.save_dir = rospy.get_param("~save_dir")
+        self.csv_file = os.path.join(self.save_dir, "classification_results.csv")
+
+        # 初始化时检查 CSV 文件是否存在，不存在则写入表头
+        os.makedirs(self.save_dir, exist_ok=True)
+        if not os.path.exists(self.csv_file):
+            with open(self.csv_file, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Classification", "Class_Label"]) 
+
+
+        self.base_path = rospy.get_param("~base_path", "/default/path/if/not/set")
         self.model_type = None
         self.minSminL = None
         self.window_size = None
@@ -88,10 +107,9 @@ class Klassifikation_Node:
         self.process_data(combined_data)
 
     def load_parameters(self):
-        yaml_path = "/home/rtliu/catkin_ws/src/online_klassifikation_pkg/scripts/Aktualisierung.yaml"
 
         try:
-            with open(yaml_path, 'r') as file:
+            with open(self.yaml_path, 'r') as file:
                 params = yaml.safe_load(file)
                 if params:
                     self.model_type = params.get('model_type', self.model_type)
@@ -104,7 +122,7 @@ class Klassifikation_Node:
     def start_config_watcher(self):
         event_handler = FileEventHandler(self.reload_callback)
         observer = Observer()
-        observer.schedule(event_handler, path="/home/rtliu/catkin_ws/src/online_klassifikation_pkg/scripts/", recursive=False)
+        observer.schedule(event_handler, self.observe_path, recursive=False)
         observer.start()
 
     def reload_callback(self):
@@ -290,14 +308,8 @@ class Klassifikation_Node:
         # rospy.loginfo(f"class: {class_time}s")
 
     def save_result(self, result_text, prediction):
-
-        save_dir = "/home/rtliu/catkin_ws/src/online_klassifikation_pkg/classification_results/"
-        os.makedirs(save_dir, exist_ok=True)
-        csv_file = os.path.join(save_dir, "classification_results.csv")
-        with open(csv_file, "a", newline="") as f:
+        with open(self.csv_file, "a", newline="") as f:
             writer = csv.writer(f)
-            if os.stat(csv_file).st_size == 0:
-                writer.writerow(["Classification", "Class_Label"])
             writer.writerow([result_text, prediction])
 
 if __name__ == "__main__":
