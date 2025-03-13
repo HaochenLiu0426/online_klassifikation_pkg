@@ -20,7 +20,7 @@ import threading
 import queue
 import subprocess
 from threading import Lock
-from threading import Thread
+
 
 class FileEventHandler(FileSystemEventHandler):
     def __init__(self, reload_callback, cooldown=2):
@@ -98,16 +98,12 @@ class Klassifikation_Node:
 
         rospy.Timer(rospy.Duration(5), self.check_model_update)
         self.activity_timer = None
-
-
-        # self.publish_timer = rospy.Timer(rospy.Duration(self.publish_interval), self.publish_result)
         
         # subscribe the sensor data, publish the classification result
         self.twist_sub = Subscriber('/cart_vel', TwistStamped)
         self.wrench_sub = Subscriber('/wrench', WrenchStamped)
-        # self.ts = ApproximateTimeSynchronizer([self.twist_sub, self.wrench_sub], queue_size=200, slop=0.0006)
-        self.slop = 0.3*self.publish_interval
-        self.ts = ApproximateTimeSynchronizer([self.twist_sub, self.wrench_sub],queue_size=250, slop=self.slop)
+        self.slop = 0.2*self.publish_interval
+        self.ts = ApproximateTimeSynchronizer([self.twist_sub, self.wrench_sub],queue_size=100, slop=self.slop)
 
         self.ts.registerCallback(self.sync_callback)
         self.result_publisher = rospy.Publisher('/classification_result', String, queue_size=10)
@@ -166,9 +162,7 @@ class Klassifikation_Node:
             # rospy.logwarn(f"overwrite: {self.overwrite_count - 50}")
             if not self.full and self.write_pos == 0:
                 self.full = True 
-            # if self.full:  # 仅在缓冲区满时记录有效覆盖
-            #     self.overwrite_count += 1
-            #     rospy.logwarn(f"overwrite: {self.overwrite_count}")
+
 
     def get_window_copy(self):
         """获取当前的窗口数据"""
@@ -254,7 +248,8 @@ class Klassifikation_Node:
                 scaler_path = os.path.join(os.path.dirname(self.model_path), f"scaler_{self.split_method}.pkl")
                 if os.path.exists(scaler_path):
                     self.scaler = joblib.load(scaler_path)
-                    rospy.loginfo(f"Loaded scaler: {scaler_path}")
+                    rospy.loginfo(f"Loaded: {scaler_path}")
+                    # rospy.loginfo(f"Mean: {self.scaler.mean_}")
                 else:
                     rospy.logwarn(f"Scaler file {scaler_path} not found!")
 
@@ -332,19 +327,18 @@ class Klassifikation_Node:
             
     ''' Processing part: includes feature calculation, classification, and result saving. '''
     # @profile_line_by_line 
-    def process_data(self,event=None): 
-        # with self.lock:
-        while not self.stop_prediction:
+    def process_data(self):
+        """单次预测任务"""
+        try:
             window_copy = self.get_window_copy()
-            self.calculate_features(window_copy) 
-        self.process_running.clear()
+            self.calculate_features(window_copy)
+        finally:
+            self.process_running.clear()
     
     @staticmethod
     def autocorrelation_matrix(data_array):
-        return np.array([
-            np.correlate(col, col, mode='full')[len(col) // 2] / len(col)
-            for col in data_array.T
-        ])
+        return np.mean(data_array**2, axis=0) 
+
 
     def hjorth_complexity_matrix(self, data_array):
         epsilon = 1e-10  # 避免除零的小数值
@@ -372,12 +366,22 @@ class Klassifikation_Node:
     @staticmethod
     def shannon_entropy_matrix(data_array, bins=5):
         num_columns = data_array.shape[1]  
-        entropy_values = np.zeros(num_columns) 
+        entropy_values = np.zeros(num_columns)  
 
         for i in range(num_columns):
-            hist_data, _ = np.histogram(data_array[:, i], bins=bins, density=True)  
-            hist_data += 1e-10
-            entropy_values[i] = -np.sum(hist_data * np.log2(hist_data))
+            col_data = data_array[:, i]
+            # 1. 归一化到 [0,1]
+            col_data = (col_data - np.min(col_data)) / (np.max(col_data) - np.min(col_data) + 1e-10)
+            
+            # 2. 计算概率质量（非密度！）
+            hist_counts, _ = np.histogram(col_data, bins=bins)  # ✅ density=False
+            hist_prob = hist_counts / len(col_data)  # 转为概率
+            
+            # 3. 避免 log(0) 并计算熵
+            hist_prob += 1e-10
+            entropy = -np.sum(hist_prob * np.log2(hist_prob))
+            entropy_values[i] = entropy
+
         return entropy_values
 
     @staticmethod
@@ -402,20 +406,21 @@ class Klassifikation_Node:
         feature_vector = np.concatenate((
         mean_features, std_features, max_features, min_features,
         autocorr_features, hjorth_features, entropy_features, dom_freq_features
-    ), dtype=np.float32)
+    ))
 
-        if self.model_type == "SVM" and self.scaler:
-            feature_vector = self.scaler.transform(feature_vector.reshape(1, -1))[0]
+        feature_vector = feature_vector.reshape(1, -1)
+
+        # if self.model_type == "SVM" and self.scaler:
+        #     feature_vector = self.scaler.transform(feature_vector)
         threading.Thread(target=self.classify, args=(feature_vector,), daemon=True).start()
-        # self.classify(feature_vector)  
 
     # @profile_line_by_line
     def classify(self, feature_vector):
-        feature_vector = np.asarray(feature_vector, dtype=np.float32).reshape(1, -1)
         prediction = self.model.predict(feature_vector)[0]
+        # rospy.loginfo("Prediction result: {}".format(prediction))
+
         result_text = self.class_mapping.get(prediction, "Unknown")
         
-        # with self.prediction_lock:
         self.last_prediction = prediction
         self.last_pred_text = result_text
             
@@ -426,14 +431,14 @@ class Klassifikation_Node:
 
 
     def save_result(self):
-        while self.running or not self.result_queue.empty():  # 确保所有数据写入
+        while self.running or not self.result_queue.empty():
             try:
                 result_text, prediction = self.result_queue.get(timeout=0.005)
                 with open(self.csv_file, "a") as f:
                     writer = csv.writer(f)
                     writer.writerow([result_text, prediction])
             except queue.Empty:
-                if not self.running:  # 只有在 running=False 后，才检查是否要退出
+                if not self.running: 
                     break
 
 
@@ -444,14 +449,7 @@ class Klassifikation_Node:
         if not self.data_active and self.stop_prediction:
             rospy.loginfo("No new data, stopping prediction.")
             self.running = False
-            # **停止 `publish_result`**
-            # if self.publish_timer:
-            #     rospy.loginfo("Stopping publish_result due to inactivity.")
-            #     self.publish_timer.shutdown()
-            #     # self.process_timer.shutdown()
-            #     self.publish_timer = None
 
-            # **停止 `activity_timer`**
             if self.activity_timer:
                 rospy.loginfo("Stopping activity check timer.")
                 self.activity_timer.shutdown()
@@ -461,10 +459,8 @@ class Klassifikation_Node:
                 self.monitor_timer.shutdown()
                 self.monitor_timer = None
 
-            # with self.result_queue.mutex:  # 线程安全操作
-            #     self.result_queue.queue.clear()
             rospy.loginfo("Flushing remaining results before exit...")
-            self.writer_thread.join()  # **等待 `save_result` 线程写完数据**
+            self.writer_thread.join()
             rospy.loginfo("All data saved. Exiting.")
             rospy.loginfo(f"Pub_result count:{self.pub_count}")
 if __name__ == "__main__":
