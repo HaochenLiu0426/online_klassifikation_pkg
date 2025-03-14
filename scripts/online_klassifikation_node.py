@@ -47,7 +47,7 @@ class Klassifikation_Node:
         self.clean_ros_logs()
         self.yaml_path = rospy.get_param("~yaml_path")
         self.observe_path = rospy.get_param("~observe_path")
-
+        self.publish_rate = rospy.get_param("~publish_rate")  
         # Create new csv document
         self.save_dir = rospy.get_param("~save_dir")
         self.csv_file = os.path.join(self.save_dir, "classification_results.csv")
@@ -75,7 +75,7 @@ class Klassifikation_Node:
         
 
         # Time and Count
-        self.publish_rate = rospy.get_param("/online_klassifikation_node/publish_rate")  
+        
         self.publish_interval = 1.0 / self.publish_rate 
         self.slow_process_count = 0
         self.processed_count = 1
