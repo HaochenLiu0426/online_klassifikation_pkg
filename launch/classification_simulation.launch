@@ -11,6 +11,7 @@
         <param name="yaml_path" value="$(arg yaml_path)" />
         <param name="observe_path" value="$(arg observe_path)" />
         <param name="save_dir" value="$(arg save_dir)" />
+        <param name="publish_rate" value="100" />
     </node>
 
     <!-- simulation_node /model_loaded -->
