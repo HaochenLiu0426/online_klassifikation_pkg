@@ -75,7 +75,7 @@ class Klassifikation_Node:
         
 
         # Time and Count
-        self.publish_rate = rospy.get_param("/simulation_node/publish_rate")  
+        self.publish_rate = rospy.get_param("/online_klassifikation_node/publish_rate")  
         self.publish_interval = 1.0 / self.publish_rate 
         self.slow_process_count = 0
         self.processed_count = 1
