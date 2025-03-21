@@ -50,6 +50,12 @@ class Klassifikation_Node:
         self.publish_rate = rospy.get_param("~publish_rate")  
         # Create new csv document
         self.save_dir = rospy.get_param("~save_dir")
+        results_path = os.path.join(self.save_dir, "classification_results.csv")
+        if os.path.exists(results_path):
+            rospy.loginfo("Removing old classification_results.csv to avoid misalignment...")
+            os.remove(results_path)
+        else:
+            rospy.loginfo("classification_results.csv does not exist, skipping deletion.")
         self.csv_file = os.path.join(self.save_dir, "classification_results.csv")
         os.makedirs(self.save_dir, exist_ok=True)
         if not os.path.exists(self.csv_file):
@@ -102,12 +108,11 @@ class Klassifikation_Node:
         # subscribe the sensor data, publish the classification result
         self.twist_sub = Subscriber('/cart_vel', TwistStamped)
         self.wrench_sub = Subscriber('/wrench', WrenchStamped)
-        self.slop = 0.2*self.publish_interval
+        self.slop = 0.3*self.publish_interval
         self.ts = ApproximateTimeSynchronizer([self.twist_sub, self.wrench_sub],queue_size=100, slop=self.slop)
 
         self.ts.registerCallback(self.sync_callback)
-        self.result_publisher = rospy.Publisher('/classification_result', String, queue_size=10)
-        
+
         self.data_active = True  # 标记数据流是否活跃
         self.stop_prediction = False
 
@@ -243,15 +248,6 @@ class Klassifikation_Node:
     def load_model(self):
         if self.model_path and os.path.exists(self.model_path):
             self.model = joblib.load(self.model_path)
-            if self.model_type == "SVM" and self.split_method:
-                # 根据 split_method 构造 scaler 文件路径
-                scaler_path = os.path.join(os.path.dirname(self.model_path), f"scaler_{self.split_method}.pkl")
-                if os.path.exists(scaler_path):
-                    self.scaler = joblib.load(scaler_path)
-                    rospy.loginfo(f"Loaded: {scaler_path}")
-                    # rospy.loginfo(f"Mean: {self.scaler.mean_}")
-                else:
-                    rospy.logwarn(f"Scaler file {scaler_path} not found!")
 
             if hasattr(self.model, "n_jobs"):  
                 self.model.n_jobs = 1
@@ -304,12 +300,12 @@ class Klassifikation_Node:
     def monitor_data_status(self, event):
         elapsed_time = time.time()- self.last_update_time
 
-        if elapsed_time > 0.03:  # ✅ **超过 30ms 没有新数据，停止预测**
+        if elapsed_time > 0.5:  # ✅ **超过 30ms 没有新数据，停止预测**
             self.data_active = False
             self.stop_prediction = True
             # self.check_activity(None)
             rospy.logwarn("Data timeout! Stopping prediction.")
-                
+
     # @profile_line_by_line 
     # def fetch_and_store_data(self, event):   
     def fetch_and_store_data(self):    
@@ -370,14 +366,11 @@ class Klassifikation_Node:
 
         for i in range(num_columns):
             col_data = data_array[:, i]
-            # 1. 归一化到 [0,1]
             col_data = (col_data - np.min(col_data)) / (np.max(col_data) - np.min(col_data) + 1e-10)
-            
-            # 2. 计算概率质量（非密度！）
+
             hist_counts, _ = np.histogram(col_data, bins=bins)  # ✅ density=False
             hist_prob = hist_counts / len(col_data)  # 转为概率
-            
-            # 3. 避免 log(0) 并计算熵
+
             hist_prob += 1e-10
             entropy = -np.sum(hist_prob * np.log2(hist_prob))
             entropy_values[i] = entropy
@@ -387,9 +380,9 @@ class Klassifikation_Node:
     @staticmethod
     def dominant_frequency_matrix(data_array, sampling_rate=100):
         n = data_array.shape[0]
-        yf = rfft(data_array, axis=0)  # 计算 FFT
-        magnitude = np.abs(yf)  # 计算幅值
-        freqs = rfftfreq(n, d=1/sampling_rate)  # 计算频率刻度
+        yf = rfft(data_array, axis=0) 
+        magnitude = np.abs(yf) 
+        freqs = rfftfreq(n, d=1/sampling_rate)  
         return freqs[np.argmax(magnitude, axis=0)]
 
     # @profile_line_by_line
@@ -409,9 +402,6 @@ class Klassifikation_Node:
     ))
 
         feature_vector = feature_vector.reshape(1, -1)
-
-        # if self.model_type == "SVM" and self.scaler:
-        #     feature_vector = self.scaler.transform(feature_vector)
         threading.Thread(target=self.classify, args=(feature_vector,), daemon=True).start()
 
     # @profile_line_by_line
@@ -423,24 +413,22 @@ class Klassifikation_Node:
         
         self.last_prediction = prediction
         self.last_pred_text = result_text
-            
+
     # @profile_line_by_line
     def publish_result(self):
         self.pub_count += 1
         self.result_queue.put((self.last_pred_text, self.last_prediction))
 
-
     def save_result(self):
         while self.running or not self.result_queue.empty():
             try:
-                result_text, prediction = self.result_queue.get(timeout=0.005)
+                result_text, prediction = self.result_queue.get(timeout=0.01)
                 with open(self.csv_file, "a") as f:
                     writer = csv.writer(f)
                     writer.writerow([result_text, prediction])
             except queue.Empty:
                 if not self.running: 
                     break
-
 
     def check_activity(self, event):
         if not self.start_saving:
