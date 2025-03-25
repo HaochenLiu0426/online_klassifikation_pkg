@@ -15,10 +15,10 @@
     </node>
 
     <!-- simulation_node /model_loaded -->
-    <node pkg="online_klassifikation_pkg" type="simulation_node.py" name="simulation_node" output="screen">
+    <!-- <node pkg="online_klassifikation_pkg" type="simulation_node.py" name="simulation_node" output="screen">
         <param name="csv_path" value="$(find online_klassifikation_pkg)/data/simulation_data.csv" />
         <param name="publish_rate" value="100" />
-    </node>
+    </node> -->
 
     <!-- Lade Parameter aus Aktualisierung.yaml -->
     <rosparam file="$(find online_klassifikation_pkg)/scripts/Aktualisierung.yaml" command="load"/>
