@@ -20,7 +20,7 @@ parameters = {
 split_methods = {
     "Entscheidungsbaum": ["Split", "Split_SMOTE", "SMOTE_Split"],
     "Random_Forest": ["Split", "Split_SMOTE", "SMOTE_Split"],
-    "SVM": ["Split", "Split_SMOTE"]  # SVM enthält Split und Split_SMOTE
+    "SVM": ["Split"]  # SVM enthält Split und Split_SMOTE
 }
 
 
