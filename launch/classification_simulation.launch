@@ -1,9 +1,12 @@
 <launch>
     <!-- Ordnersphad orientieren -->
-    <arg name="base_path" value="/home/rtliu/catkin_ws/src/online_klassifikation_pkg/Best_Model/" />
-    <arg name="yaml_path" value="/home/rtliu/catkin_ws/src/online_klassifikation_pkg/scripts/Aktualisierung.yaml" />
-    <arg name="observe_path" value="/home/rtliu/catkin_ws/src/online_klassifikation_pkg/scripts/" />
-    <arg name="save_dir" value="/home/rtliu/catkin_ws/src/online_klassifikation_pkg/classification_results/" />
+    <arg name="user_name" default="rtliu" />
+
+    <arg name="base_path" value="/home/$(arg user_name)/catkin_ws/src/online_klassifikation_pkg/Best_Model/" />
+    <arg name="yaml_path" value="/home/$(arg user_name)/catkin_ws/src/online_klassifikation_pkg/scripts/Aktualisierung.yaml" />
+    <arg name="observe_path" value="/home/$(arg user_name)/catkin_ws/src/online_klassifikation_pkg/scripts/" />
+    <arg name="save_dir" value="/home/$(arg user_name)/catkin_ws/src/online_klassifikation_pkg/classification_results/" />
+
     
     <!-- online_klassifikation_node -->
     <node pkg="online_klassifikation_pkg" type="online_klassifikation_node.py" name="online_klassifikation" output="screen">
@@ -15,10 +18,10 @@
     </node>
 
     <!-- simulation_node /model_loaded -->
-    <!-- <node pkg="online_klassifikation_pkg" type="simulation_node.py" name="simulation_node" output="screen">
+    <node pkg="online_klassifikation_pkg" type="simulation_node.py" name="simulation_node" output="screen">
         <param name="csv_path" value="$(find online_klassifikation_pkg)/data/simulation_data.csv" />
         <param name="publish_rate" value="100" />
-    </node> -->
+    </node>
 
     <!-- Lade Parameter aus Aktualisierung.yaml -->
     <rosparam file="$(find online_klassifikation_pkg)/scripts/Aktualisierung.yaml" command="load"/>
